@@ -1,0 +1,41 @@
+<html>
+<head></head>
+<body>
+    <script type="text/javascript">
+        var myWorker = new Worker('ws.js');
+        var start, end;
+
+        window.onload = function() {
+            console.log("onload");
+            myWorker.postMessage("init");
+            myWorker.onmessage = function(e) {
+                if (e.data.type == "results") {
+                    var end = new Date().getTime();
+                    console.log("results:", e.data.args);
+                    document.getElementById('testResult').innerHTML = 'Speed:' + e.data.args[0] + "Mbps, data use:" + e.data.args[1] + "MB";
+                    console.log('time cost is', `${end - start}ms`);
+                    document.getElementById('timeuse').innerHTML = `${end - start}ms`;
+                    myWorker.postMessage("close sock");
+                }
+            }
+
+        };
+
+        function send() {
+            var msg = document.getElementById('message').value;
+            sock.send(msg);
+        };
+
+        function speedtest() {
+            start = new Date().getTime()
+            myWorker.postMessage("start");
+        }
+
+
+    </script>
+    <h1>WebSocket Upload Speed Test</h1>
+    <div id="testResult">0mbps</div>
+    <div id="timeuse">0ms</div>
+    <button onclick="speedtest();">Start</button>
+</body>
+</html>
