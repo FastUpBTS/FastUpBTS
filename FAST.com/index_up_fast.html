@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Test</title>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<script type="text/javascript" src="jquery-3.2.1.min.js"></script>
+		<script type="text/javascript" src="jquery.ba-throttle-debounce.js"></script>
+	</head>
+	<script type="text/javascript" src="server_ip.js"></script>
+	<script>
+		function onload() {
+		}
+		var timeLimit=30;
+		var throughput;
+		var endCount;
+		var isFinished;
+		var globalTime;
+		var serverCnt=1;
+		var ip;
+		var data="";
+		var speedPoint;
+		function init(){
+			throughput=0;
+			endCount=0;
+			speedPoint=Array();
+			speedPoint.push(0);
+			isFinished=0;
+			globalTime=0;
+			data="";
+			for(i=0;i<25*1024*1024;i++)data+="a";
+		}
+		function sendToServer(result){
+			console.log(result);
+			console.log(endCount);
+			document.getElementById("showSpeedPoint").innerHTML=result;
+			console.log("over~");
+		}
+		function timerStart(){
+			intervalId=setInterval(function (){
+				globalTime+=100;
+				document.getElementById("timeOutput").innerHTML=globalTime/1000;
+				result=0;
+				var result=0;
+				result+=throughput;
+				result+=endCount*data.length;
+				document.getElementById("traffic").innerHTML=result/1024/1024;
+				result=result/1024/1024/globalTime*1000*8;
+				speedPoint.push(result);
+				document.getElementById("showSpeedPoint").innerHTML=result;
+				while(speedPoint.length>20){
+					speedPoint=speedPoint.slice(1);
+				}
+				if(globalTime>=5000){
+					var maxPoint=speedPoint[0];
+					var minPoint=speedPoint[0];
+					for(i=0;i<speedPoint.length;i++){
+						maxPoint=Math.max(maxPoint,speedPoint[i]);
+						minPoint=Math.min(minPoint,speedPoint[i]);
+					}
+					if(maxPoint*0.97<=minPoint){
+						isFinished=1;
+						checkResult=setInterval(function (){
+							result=0;
+							for(i=0;i<speedPoint.length;i++){
+								result+=speedPoint[i];
+							}
+							result/=speedPoint.length;
+							sendToServer(result);
+							clearInterval(checkResult);
+						},1000);
+						clearInterval(intervalId);
+					}
+				}
+				if(globalTime>=timeLimit*1000){
+					isFinished=1;
+					document.getElementById("showSpeedPoint").innerHTML=result;
+					var result=0;
+					checkResult=setInterval(function (){
+						result=0;
+						for(i=0;i<speedPoint.length;i++){
+							result+=speedPoint[i];
+						}
+						result/=speedPoint.length;
+						sendToServer(result);
+						clearInterval(checkResult);
+					},1000);
+					clearInterval(intervalId);
+				}
+			},100);
+		}
+		function uploadThread(url){
+			var xhr = new XMLHttpRequest();
+			xhr.open("POST", url);
+			xhr.onreadystatechange = function() {
+				if (this.readyState == 4 && this.status == 200) {
+					if(!isFinished){
+						endCount+=1;
+						throughput=0;
+						uploadThread(url);
+					}
+				}
+			};
+			xhr.upload.onprogress = function(e) {
+				var percent = Math.floor(e.loaded / e.total * 100);
+				throughput=e.loaded;
+				if(isFinished){
+					xhr.abort();
+					throughput=e.loaded;
+					return;
+				}
+			}
+			xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+			xhr.send(data);
+		}
+		function start(){
+			init();
+			timerStart();
+			uploadThread("http://"+server_ip+"/upData.php");
+		}
+	</script>
+	<body onload="onload()">
+		<button onclick='start()'>start</button>
+		<div id='timeOutput'></div>
+		<div id='showSpeedPoint'></div>
+		<div id='traffic'></div>
+	</body>
+</html>
+
+
+
